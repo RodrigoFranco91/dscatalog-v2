@@ -1,0 +1,94 @@
+Neste capítulo continuamos a resolução do desafio (estudo de caso) URI 2611 (https://www.beecrowd.com.br/judge/pt/problems/view/2611), mas agora é via
+projeto Java com Spring.
+
+
+- Resolução:
+
+	1) Lembre-se que vamos usar o Profile dev, configuramos isso lá no arquivo application.properties. Lembre-se de configurar o acesso do banco de dados
+	no arquivo application-dev.properties;
+
+	2) A nossa busca quer exibir apenas o id e o name do Movie, logo vamos criar uma Projeção que tenha esses dois atributos, para isso criamos a 
+	interface MovieMinProjection com um método get() para cada atributo que quero exibir, ficando assim: 
+
+            public interface MovieMinProjection {
+
+                Long getId();
+                String getName();
+            }
+
+	Lembre-se que o nome do método tem que bater com o nome da classe entidade (mapeada pela JPA), no caso o nome é composto por get+NOME_DO_ATRIBUTO;
+
+	3) Criamos o repository MovieRepository que implementa JpaRepository, ficando assim:
+
+            public interface MovieRepository extends JpaRepository<Movie, Long> {
+
+                @Query(nativeQuery = true, value = "SELECT movies.id, movies.name "
+                        + "FROM movies "
+                        + "INNER JOIN genres ON movies.id_genres = genres.id "
+                        + "WHERE genres.description = :genreName")
+                List<MovieMinProjection> search1(String genreName);
+
+                @Query("SELECT new com.devsuperior.uri2611.dto.MovieMinDTO(obj.id, obj.name) "
+                        + "FROM Movie obj "
+                        + "WHERE obj.genre.description = :genreName")
+                List<MovieMinDTO> search2(String genreName);
+            }
+
+	Veja que na segunda busca usamos JPQL, logo não precisamos usar JOIN no SQL, basta navegar pelo objeto que ja tem o relacionamento.
+
+	Veja também que criamos dois métodos, a primeira com Native Query e a segunda usando JPQL. Na segunda busca já fizemos retornar um DTO, ou seja, uma 
+	casca para exibir resposta ao cliente, por isso usamos new e o caminho da classe DTO. A classe DTO ficou assim:
+
+            public class MovieMinDTO {
+
+                private Long id;
+                private String name;
+                
+                public MovieMinDTO() {
+                }
+
+                public MovieMinDTO(Long id, String name) {
+                    this.id = id;
+                    this.name = name;
+                }
+
+                public MovieMinDTO(MovieMinProjection projection) {
+                    id = projection.getId();
+                    name = projection.getName();
+                }
+        
+
+		//GET E SET
+
+	4) Para executar esse programa sem a camada web, fizemos a classe principal implementar CommandLineRunner, ficando assim:
+
+            @SpringBootApplication
+            public class Uri2611Application implements CommandLineRunner {
+
+                @Autowired
+                private MovieRepository repository;
+                
+                public static void main(String[] args) {
+                    SpringApplication.run(Uri2611Application.class, args);
+                }
+
+                @Override
+                public void run(String... args) throws Exception {
+                    
+                    List<MovieMinProjection> list = repository.search1("Action");
+                    List<MovieMinDTO> result1 = list.stream().map(x -> new MovieMinDTO(x)).collect(Collectors.toList());
+                    
+                    System.out.println("\n*** RESULTADO SQL RAIZ:");
+                    for (MovieMinDTO obj : result1) {
+                        System.out.println(obj);
+                    }
+                    System.out.println("\n\n");
+                    
+                    List<MovieMinDTO> result2 = repository.search2("Action");
+                    
+                    System.out.println("\n*** RESULTADO JPQL:");
+                    for (MovieMinDTO obj : result2) {
+                        System.out.println(obj);
+                    }
+                }
+            }            

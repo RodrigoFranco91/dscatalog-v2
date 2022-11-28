@@ -1,0 +1,10 @@
+Neste capítulo resolvemos o desafio (estudo de caso) URI 2611. A resolução é somente via site (https://www.beecrowd.com.br/judge/pt/problems/view/2611)
+
+
+- Resolução:
+
+	SELECT m.id, m.name FROM movies m, genres g WHERE m.id_genres = g.id AND g.description LIKE 'Action'
+
+	OU
+
+	SELECT m.id, m.name FROM movies m JOIN genres g ON m.id_genres = g.id WHERE g.description LIKE 'Action'

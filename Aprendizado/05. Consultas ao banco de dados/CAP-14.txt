@@ -1,0 +1,8 @@
+Neste capítulo resolvemos o desafio (estudo de caso) URI 2609. A resolução é somente via site (https://www.beecrowd.com.br/judge/pt/problems/view/2609)
+
+
+- Resolução:
+
+	SELECT c.name, SUM(p.amount) FROM products p INNER JOIN categories c ON p.id_categories = c.id GROUP BY c.name 
+
+Obs: Aqui usamos o INNER JOIN, pois existe uma categoria que não tem nenhum produto e não queremos mostrar essa categoria na busca!

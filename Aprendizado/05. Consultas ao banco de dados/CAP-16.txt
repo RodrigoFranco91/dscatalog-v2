@@ -1,0 +1,24 @@
+Neste capítulo resolvemos o desafio (estudo de caso) URI 2737. A resolução é somente via site (https://www.beecrowd.com.br/judge/pt/problems/view/2737)
+
+
+- Resolução 1 (a outra será apresentada no próximo capítulo):
+
+            (SELECT l.NAME, l.customers_number FROM lawyers l ORDER BY l.customers_number DESC LIMIT 1)
+
+            UNION ALL
+
+            (SELECT l.NAME, l.customers_number FROM lawyers l ORDER BY l.customers_number ASC LIMIT 1)
+
+            UNION ALL
+
+            (SELECT 'Average', ROUND(AVG(l.customers_number),0) FROM lawyers l)
+
+Obs:
+
+Veja que aqui fizemos 3 consultas e as juntamos com UNION ALL. Atente-se que UNION ALL traz todas as contulas, mesmo se resultado for igual (no caso se o 
+número maximo e minimo fossem iguais, a consulta taria os dois!).
+
+A logica aqui foi fazer uma consultar ordenada do maior número de clientes para o menor e a outra consultar ordenar do menor para o maior e em ambas pegar 
+apenas a primeira linha (LIMIT). Já na média usamos a função AVG para calcular a média e a função ROUND para definir a quantiade de casas decimais. Ainda
+na média escrevemos o 'Average', pois só podemos juntar consultas com a mesma quantidade de coluna, logo criamos a coluna com nome de Average para na segunda
+vir o valor.

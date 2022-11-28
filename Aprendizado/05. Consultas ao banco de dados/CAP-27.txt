@@ -1,0 +1,34 @@
+Neste capítulo vamos continuar a fazer aquela consulta filtrada pelo nome do produto e/ou categoria.
+
+
+- Lembre-se que o listar os produtos através do filtro Catgory está funcionando, mas ao deixar o filtro em branco a listagem não funciona. Vamos arrumar isso
+
+
+- O método find() de ProductRespository está assim:
+
+                @Query("SELECT DISTINCT obj FROM Product obj INNER JOIN obj.categories cats WHERE "
+                        + "(COALESCE(:categories) IS NULL OR cats IN :categories) AND "
+                        + "(LOWER(obj.name) LIKE LOWER(CONCAT('%',:name,'%'))) ")
+                Page<Product> find(List<Category> categories, String name, Pageable pageable);
+
+
+	Devemos adicionar um OU nessa query, que quando Category for NULL devemos fazer uma busca por todos os Products
+
+	Lembre-se que em ProductResource (nosso controller) o valor padrão de Category é zero e na classe ProductService a gente faz Category virar null
+	caso seu valor continue em 0. Poranto se chegar zero no ProductRepository é para buscar todos os produtos.
+
+	O método find() deverá ficar assim:
+
+                    @Query("SELECT obj FROM Product obj INNER JOIN obj.categories cats WHERE (:category IS NULL OR :category IN cats")
+                    Page<Product> find(Category category, Pageable pageable);
+
+	Lembre-se que em OR basta a primeira condição ser TRUE para o resultado ser TRUE, logo se category ser NULL já vai dar verdadeiro e vai ocorrer a
+	busca de todos Products.
+
+
+- Agora podemos testar a request para: GET em {{host}}/products
+Veja que quase deu certo, mas houve a listagem de um Product a mais! Isso ocorreu porque usamos o JOIN e ele traz a linha repetida, ou seja, o Produto 2 tem
+dois tipos de categorias, logo o produtc 2 vai aparecer duas vezes! Vamos corrigir isso. Basta adicionar o comando DISTINCT na QUERY, ficando assim:
+
+            @Query("SELECT DISTINCT obj FROM Product obj INNER JOIN obj.categories cats WHERE (:category IS NULL OR :category IN cats)")
+            Page<Product> find(Category category, Pageable pageable);

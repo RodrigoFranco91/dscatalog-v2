@@ -1,0 +1,174 @@
+Neste capítulo fizemos as correçoes necessárias nos testes do DSCatalog:
+
+
+- O profile usado agora será o test
+
+
+- Lembre-se os testes estão na pasta src/test/java
+
+
+- Teste a ser corrigido: findAllPagedShouldReturnPage() da classe ProductServiceTests:
+
+	O método estava assim, sem argumentos necessários para chamar o Service:
+
+                @Test
+                public void findAllPagedShouldReturnPage() {
+                    
+                    Pageable pageable = PageRequest.of(0, 12);
+                    
+                    Page<ProductDTO> result = service.findAllPaged(pageable);
+                    
+                    Assertions.assertNotNull(result);
+                }
+
+	E ficou assim:
+
+                @Test
+                public void findAllPagedShouldReturnPage() {
+                    
+                    Pageable pageable = PageRequest.of(0, 12);
+                    
+                    Page<ProductDTO> result = service.findAllPaged(0L, "", pageable);
+                    
+                    Assertions.assertNotNull(result);
+                }
+
+
+- Teste a ser corrigido: findAllPagedShouldReturnPageWhenPage0Size10() da classe ProductServiceIT:
+
+	O método estava assim, sem argumentos necessários para chamar o Service:
+
+                @Test
+                public void findAllPagedShouldReturnPageWhenPage0Size10() {
+                    
+                    PageRequest pageRequest = PageRequest.of(0, 10);
+                    
+                    Page<ProductDTO> result = service.findAllPaged(pageRequest);
+                    
+                    Assertions.assertFalse(result.isEmpty());
+                    Assertions.assertEquals(0, result.getNumber());
+                    Assertions.assertEquals(10, result.getSize());
+                    Assertions.assertEquals(countTotalProducts, result.getTotalElements());
+                }
+
+	E ficou assim:
+
+                @Test
+                public void findAllPagedShouldReturnPageWhenPage0Size10() {
+                    
+                    PageRequest pageRequest = PageRequest.of(0, 10);
+                    
+                    Page<ProductDTO> result = service.findAllPaged(0L, "", pageRequest);
+                    
+                    Assertions.assertFalse(result.isEmpty());
+                    Assertions.assertEquals(0, result.getNumber());
+                    Assertions.assertEquals(10, result.getSize());
+                    Assertions.assertEquals(countTotalProducts, result.getTotalElements());
+                }
+
+	Obs: Os métodos findAllPagedShouldReturnEmptyPageWhenPageDoesNotExist() e findAllPagedShouldReturnSortedPageWhenSortByName() desta mesma classe
+	também foram corrigidos da mesma forma.
+
+
+- A classe ProductResourceTests teve correções no seu Mock.
+
+	Estava assim:
+
+			when(service.findAllPaged(any())).thenReturn(page);
+
+	Ficou assim:
+
+			when(service.findAllPaged(any(), any(), any())).thenReturn(page);
+
+
+- Agora a IDE parou de reclamar dos testes. Vamos executar todos os testes e veremos que temos erros e falhas. Vamos corrigir cada um:
+
+	- Vamos corrigir a classe ProductServiceTests. Está faltando aqui um Mock para a chamada de ProductRepository adicionado no @Before, no caso:
+
+		Mockito.when(repository.find(any(), any(), any())).thenReturn(page);
+
+	- Vamos corrigir a classe ProductServiceTests, no caso o método findAllPagedShouldReturnPage(). Antes esse estava chamando o método findAll() do 
+	ProductRepository e agora chamará o find(), ou eliminar a linha de verify que chama os métodos de ProductRepositry(que foi o que fizemos):
+
+                @Test
+                public void findAllPagedShouldReturnPage() {
+                    
+                    Pageable pageable = PageRequest.of(0, 12);
+                    
+                    Page<ProductDTO> result = service.findAllPaged(0L, "", pageable);
+                    
+                    Assertions.assertNotNull(result);
+                }
+
+	- Agora vamos corrigir a classe ProductResourceIT, pois está faltando pegar o Token. Para isso tivemos que criar a classe TokenUtil, no pacote tests:
+
+            @Component
+            public class TokenUtil {
+
+                @Value("${security.oauth2.client.client-id}")
+                private String clientId;
+
+                @Value("${security.oauth2.client.client-secret}")
+                private String clientSecret;
+                
+                public String obtainAccessToken(MockMvc mockMvc, String username, String password) throws Exception {
+
+                    MultiValueMap<String, String> params = new LinkedMultiValueMap<>();
+                    params.add("grant_type", "password");
+                    params.add("client_id", clientId);
+                    params.add("username", username);
+                    params.add("password", password);
+
+                    ResultActions result = mockMvc
+                            .perform(post("/oauth/token")
+                                    .params(params)
+                                    .with(httpBasic(clientId, clientSecret))
+                                    .accept("application/json;charset=UTF-8"))
+                                    .andExpect(status().isOk())
+                                    .andExpect(content().contentType("application/json;charset=UTF-8"));
+
+                    String resultString = result.andReturn().getResponse().getContentAsString();
+
+                    JacksonJsonParser jsonParser = new JacksonJsonParser();
+                    return jsonParser.parseMap(resultString).get("access_token").toString();
+                }
+            }
+
+	E agora na classe ProductResourceIT injetamos com @Autowired um atributo do tipo TokenUtil e nos métodos de Update (onde exige autenticação) tivemos
+	que pegar o token com o seguinte código:
+
+		String accessToken = tokenUtil.obtainAccessToken(mockMvc, username, password);
+
+	Criamos como atributo de classe os: mockMvc, username, password. Seus valores ficaram no método setUp()
+
+	Agora com o token devemos passá-lo no cabeçalho, veja o exemplo:
+
+	...
+
+                    ResultActions result = 
+                            mockMvc.perform(put("/products/{id}", existingId)
+                                .header("Authorization", "Bearer " + accessToken)
+                                .content(jsonBody)
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .accept(MediaType.APPLICATION_JSON));
+	...
+
+
+	- Agora vamos corrigir a classe ProductResourceTests. Essa ckasse está anoatada com @WebMvcTest(ProductResource.class) e com essa anotação vai dar
+	erro ao carregar um contexto. A anotação agora será: @SpringBootTest @AutoConfigureMockMvc. Outra coisa que falta nessas classes é adicionar o token
+	como fizemos no passo anterior.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

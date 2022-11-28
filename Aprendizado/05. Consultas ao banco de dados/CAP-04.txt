@@ -1,0 +1,9 @@
+Neste capítulo foi falado sobre a instalação do Postgres ou usá-lo via docker.
+
+
+- Se optar pela instalação, devemos instalar o servidor do PostgreSQL e um cliente/aplicativo para gerenciar o PostgreSQL (no nosso caso pgAdmim)
+
+
+- Se quiser rodar via dockar, basta executar:
+
+	docker run -p 5432:5432 --name meu-container-postgres -e POSTGRES_PASSWORD=postgre -e POSTGRES_DB=dscatalog postgres:12-alpine

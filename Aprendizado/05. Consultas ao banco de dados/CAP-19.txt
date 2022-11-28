@@ -1,0 +1,22 @@
+Neste capítulo resolvemos o desafio (estudo de caso) URI 2990. A resolução é somente via site (https://www.beecrowd.com.br/judge/pt/problems/view/2990)
+
+
+- Resolução1 feita por mim, usando diferença:
+
+            SELECT e.cpf, e.enome, d.dnome  FROM empregados e JOIN departamentos d ON d.dnumero = e.dnumero 
+            WHERE e.cpf NOT IN(SELECT t.cpf_emp FROM trabalha t)
+            ORDER BY e.cpf 
+	
+
+- Resolução1 feita pelo professor, usando diferença:
+
+            SELECT e.cpf, e.enome, d.dnome  FROM empregados e JOIN departamentos d ON d.dnumero = e.dnumero 
+            WHERE e.cpf NOT IN(SELECT e.cpf FROM empregados e INNER JOIN trabalha t ON t.cpf_emp = e.cpf)
+            ORDER BY e.cpf 
+
+
+Obs: Repare que em ambos eu uso a diferença, e a diferença é feita com o NOT IN + uma sub-consulta. A sub-consulta é um outro SELECT que vem após o NOT IN.
+Na minha solução a sub-consulta consite em fazer um SELECT de todos os CPFs que estão na tabela trabalha (são pessoas que trabalham), mas depois com o 
+NOT IN eu só vou pegar empregados que não estão na tabela de trabalha, ou seja, empregados que não trabalham.
+A sub-consulta do professor segue o mesmo caminho, mas ele quis novamente faz a junção de Empregado com Trabalha para depois pegar somente CPFs que não 
+aparecem nessa junção.

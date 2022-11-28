@@ -1,0 +1,150 @@
+Neste capítulo resolvemos o desafio (estudo de caso) URI 2990 (https://www.beecrowd.com.br/judge/pt/problems/view/2990). Mas agora a resolução é via projeto
+Java com Spring.
+
+
+- Resolução:
+
+	1) Esse desafio é mais complexo, por isso o professor até fez um modelo para exempleficar. Veja o arquivo 2990.png para facilitar o entendimento
+	das classes de modelo/entidade e seus relacionamento;
+
+	2) Nesse projeto vamos uesar o Profile dev, logo será no arquivo application-dev.properties que vamos  configurar o acesso do banco de dados;
+
+	3) O resultado/resposta da busca esperado é de 3 colunas, sendo elas: cpf, enome e dnome. Logo criamos uma interface que será nossa projeção. A 
+	interface se chama EmpregadoDeptProjection e tem 3 métodos, um para cada coluna. Veja como ficou a interfaceL:
+
+            public interface EmpregadoDeptProjection {
+
+                String getCpf();
+                String getEnome();
+                String getDnome();
+            }
+
+	4) Criamos a classe DTO para retornar a resposta ao cliente. Veja como ficou:
+
+            public class EmpregadoDeptDTO {
+
+                private String cpf;
+                private String enome;
+                private String dnome;
+                
+                public EmpregadoDeptDTO() {
+                }
+
+                public EmpregadoDeptDTO(String cpf, String enome, String dnome) {
+                    this.cpf = cpf;
+                    this.enome = enome;
+                    this.dnome = dnome;
+                }
+                
+                public EmpregadoDeptDTO(EmpregadoDeptProjection projection) {
+                    cpf = projection.getCpf();
+                    enome = projection.getEnome();
+                    dnome = projection.getDnome();
+                }
+
+	5) Criamos nossa interface EmpregadoRepository que extends JpaRepository. Nela haverá 3 métodos, cada um é uma maneira de se fazer a busca/pesquisa.
+	Veja como ficou a interface:
+
+            public interface EmpregadoRepository extends JpaRepository<Empregado, Long> {
+
+                @Query(nativeQuery = true, value = "SELECT empregados.cpf, empregados.enome, departamentos.dnome "
+                        + "FROM empregados "
+                        + "INNER JOIN departamentos ON departamentos.dnumero = empregados.dnumero "
+                        + "WHERE empregados.cpf NOT IN ( "
+                        + "    SELECT empregados.cpf "
+                        + "    FROM empregados "
+                        + "    INNER JOIN trabalha ON empregados.cpf = trabalha.cpf_emp "
+                        + ") "
+                        + "ORDER BY empregados.cpf")
+                List<EmpregadoDeptProjection> search1();
+                
+                @Query("SELECT new com.devsuperior.uri2990.dto.EmpregadoDeptDTO(obj.cpf, obj.enome, obj.departamento.dnome) "
+                        + "FROM Empregado obj "
+                        + "WHERE obj.cpf NOT IN ( "
+                        + "    SELECT obj.cpf "
+                        + "    FROM Empregado obj "
+                        + "    INNER JOIN obj.projetosOndeTrabalha "
+                        + ") "
+                        + "ORDER BY obj.cpf")
+                List<EmpregadoDeptDTO> search2();
+                
+                @Query(nativeQuery = true, value = "SELECT empregados.cpf, empregados.enome, departamentos.dnome "
+                        + "FROM empregados "
+                        + "INNER JOIN departamentos ON departamentos.dnumero = empregados.dnumero "
+                        + "LEFT JOIN trabalha ON empregados.cpf = trabalha.cpf_emp "
+                        + "WHERE pnumero IS NULL "
+                        + "ORDER BY empregados.cpf")
+                List<EmpregadoDeptProjection> search3();
+            }
+
+	A solução search1: É via Native Query e seu retorno será a projeção que criamos no passo 3 deste tutorial. Essa solução usou o SQL que explicamos no 
+	CAP-19.
+
+	A solução search3: É via Native Query e seu retorno será a projeção que criamos no passo 3 deste tutorial. Essa solução usou o SQL que explicamos no 
+	CAP-20.
+
+	A solução search2: É utilizado a JPQL. Aqui o retorno é diretamente a classe DTO que criamos no passo 4 e até por isso temos que usar o new juntamente
+	com o nome completo da classe DTO. Lembre-se, com JPQL a gente navega pelo relacionamento do Objeto Java. Atente-se que na sub-select usamos:
+	INNER JOIN obj.projetosOndeTrabalha e com isso só vamos pegar Empregados que tenham uma relação com projetosOndeTrabalha (verifique na classe
+	Empregado o atributo com o nome projetosOndeTrabalha para você entender a relação).
+
+	6) Para executar esse programa sem criar a parte Web, fizemos a classe principal implementar CommandLineRunner. Ficando assim:
+
+            @SpringBootApplication
+            public class Uri2990Application implements CommandLineRunner {
+
+                @Autowired
+                private EmpregadoRepository repository;
+                
+                public static void main(String[] args) {
+                    SpringApplication.run(Uri2990Application.class, args);
+                }
+
+                @Override
+                public void run(String... args) throws Exception {
+                    
+                    List<EmpregadoDeptProjection> list = repository.search1();
+                    List<EmpregadoDeptDTO> result1 = list.stream().map(x -> new EmpregadoDeptDTO(x)).collect(Collectors.toList());
+                    
+                    System.out.println("\n*** RESULTADO SQL RAIZ:");
+                    for (EmpregadoDeptDTO obj : result1) {
+                        System.out.println(obj);
+                    }
+                    System.out.println("\n\n");
+                    
+                    List<EmpregadoDeptDTO> result2 = repository.search2();
+                    
+                    System.out.println("\n*** RESULTADO JPQL:");
+                    for (EmpregadoDeptDTO obj : result2) {
+                        System.out.println(obj);
+                    }
+                    System.out.println("\n\n");
+                    
+                    List<EmpregadoDeptProjection> list3 = repository.search3();
+                    List<EmpregadoDeptDTO> result3 = list3.stream().map(x -> new EmpregadoDeptDTO(x)).collect(Collectors.toList());
+                    
+                    System.out.println("\n*** RESULTADO SQL RAIZ:");
+                    for (EmpregadoDeptDTO obj : result3) {
+                        System.out.println(obj);
+                    }
+                    System.out.println("\n\n");
+                }
+            }
+
+		Veja que injetamos um EmpregadoRepository;
+
+		Tivemos que converter a Projeção para DTO.
+
+
+
+
+
+
+
+
+
+
+
+
+
+

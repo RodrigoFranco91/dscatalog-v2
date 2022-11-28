@@ -1,0 +1,169 @@
+Neste capítulo falamos sobre o Problema do N+1 nas consultas com o Spring Data JPA:
+
+
+- Esse problema prejudica o desemepenho. Veja esse exemplo: Temos cadastros de produtos e cada produto pode ter uma ou mais categoria (relacionamento muitos
+para muitos). Ao fazer uma busca por Produtos teremos que "bater" no banco mais de uma vez, uma para buscar os produtos e outras vezes para buscar a 
+categoria de cada produto;
+
+
+- O professor indicou assistir o vídeo: https://www.youtube.com/watch?v=sqbqoR-lMf8
+O projeto usado nesse vídeo foi: https://github.com/devsuperior/aulao_nmais1
+
+
+- Daqui pra baixo, vamos falar sobre esse vídio do youtube que o professor indicou:
+
+	1) Executamos a request GET em localhost:8080/products e temos como resposta a a listagem paginada de Products;
+
+	2) Executamos a request GET em localhost:8080/products?size=3 e temos como resposta a a listagem paginada de Products, mas agora vem apenas 3 produtos
+	por página;
+
+	3) Ao executar o passo anterior, devemos ir na IDE e visualizar o LOG das consultas do Hibernate e veremos que tivemos 4 consultas no banco,
+	uma foi para buscar os produtos e outras três consultas para buscar a categoria de cada produto!
+	
+	4) Veja a classe Product e Category e verá que há um relacionamento @ManyToMany entre essas classes;
+
+	5) Veja a classe ProductRepository para entender a implementação;
+
+	6) Veja as clases ProductDTO e CategoryDTO, DTO são tipo uma casca para retornar ao cliente da request. Essas classes não são gerenciadas pelo JPA;
+
+	7) Na classe ProdutDTO tem o construtor que recebe como parâmetro o Product e dentro do construtor a gente converte o Product para ProductDTO.
+	Repare que aqui temos o atributo categories e ocorre a seguinte conversão: a gente pega as categories de Product, converte pra CategoryDTO e adiciona
+	em categories de ProductDTO. 
+
+	Aqui fizemos o teste de comentar o trecho que faz essa conversão de Product.getCategories() para CategoryDTO, e após isso fizemos novamente a request
+	do passo 2 e vimos que não houve o problema do N+1. Aqui aprendemos que esse problema SOMENTE ocorre quando tentamos acessar o atributo 
+	(a lista), ou seja, se não acessar/chamar não tem problema, por padrão a JPA não carrega a lista de um Objeto. Esse padrão se chama Lazy Loading
+	(só carrego se precisar).
+
+	Tenha em mente que esse acessar/chamar que gera o problema é sempre da classe/entidade gerenciada pelo JPA, ou seja, que tem o @Entity.
+
+	8) Vamos aprender a resolver isso usando o JOIN FECTH. Para isso teremos que criar um método nosso (personalizado) de busca de produtos, ou seja,
+	vamos parar de usar o Query Method findAll() na classe ProductService. Veja como ficará esse método personalizado:
+
+            public interface ProductRepository extends JpaRepository<Product, Long> {
+
+                @Query("SELECT obj FROM Product obj JOIN FETCH obj.categories")
+                List<Product> findProductsCategories();
+
+            }
+
+	Veja que usamos JPQL, logo vamos navegar pelo Objeto Java. Product é a classe, obj é o apelido que demos ao objeto de Product e obj.categories é para
+	acessar o atributo categories da classe Product.
+
+	9) Na classe Product Service passamos a usar o método personalizado, ou seja, o findProductsCategories(). Lemebre-se que ainda estamos usando
+	List e não Page no retorno, depois vamos usar Page e por isso devemos alterar o retorno no Service e no Controller!
+
+	10) Repetimos a request feita no passo 2 e agora não tivemos o problema N+1, pois só tivemos UMA consulta. Mas nossa listagem não é Paginada.
+
+	11) Vamos alterar nosso método personalizado no ProductRepository, vamos usar Page, ficando assim:
+
+            public interface ProductRepository extends JpaRepository<Product, Long> {
+
+                @Query("SELECT obj FROM Product obj JOIN FETCH obj.categories")
+                Page<Product> findProductsCategories(Pageable pageable);
+
+            }
+
+	Lembre-se de novamente atualizar o retorno dos metodos para Page e de usar Pageable no Service!
+
+	12) Repetimos a request feita no passo 2 e agora tivemos uma Exception! Join Fetch não funciona com Paginação. 
+
+	A paginação usa o comando LIMIT em seu SQL, por exemplo: LIMIT 5,5 (o primeiro número é da linha que ele vai pegar e o segundo a quantidade. Nesse
+	caso pegaria o produto da linha 6,7,8,9,10.)
+
+	Devido o comando LIMIT trabalhar com a linha (seu primeiro argumento define a linha de inicio que ele vai considerar a consulta) é o motivo de
+	gerar problema, pois nesse caso estamos começando na linha 5 e indo até a linha 10, só que um Product pode ter 6 Category, ou seja, na listagem 
+	paginada com LIMIT uma categoria vai ficar de fora (lembre-se que a contagem começa na linha 0) e isso vai gerar um distorção no Objeto!
+
+	13) Não tem como fazer uma busca paginada com apenas uma consulta, mas podemos faze-la com duas consultas que já é muito melhor que o problema
+	N+1. Nesse caso a primeira consulta será um SELECT com LIMIT, nesse caso poderia ser um SELECT * FROM Product LIMIT 5,5. A segunda consulta usará
+	os ID's retornados na primeira consulta e vai bater na tabela Category. A junção das duas consultas é o comando IN.
+
+	14) Vamos na interface ProductRepository e atualizar nosso método findProductsCategories. Ele ficará assim:
+
+            public interface ProductRepository extends JpaRepository<Product, Long> {
+
+                @Query("SELECT obj FROM Product obj JOIN FETCH obj.categories WHERE obj IN :products")
+                List<Product> findProductsCategories(List<Product> products);
+
+            }
+
+	Veja que a busca será Paginada, mas aqui não retornamos o Page! Continuamos a retornar List, pois esse nosso método só serve para deixar o resultado
+	em memória! A busca que de fato vai retornar para o cliente será o Query Method findAll()
+
+	15) A classe ProductService deverá ficar assim:
+
+            @Service
+            public class ProductService {
+                
+                @Autowired
+                private ProductRepository repository;
+
+                @Transactional(readOnly = true)
+                public Page<ProductDTO> find(PageRequest pageRequest) {
+
+                    //Aqui eu busco todos aplicando o limite de paginação que o cliente definiu e lembre-se por padrão é LAZY LOADING, categoria não é carragada de primeira
+                    //Essa busca que o cliente recebe como resposta
+                    Page<Product> page = repository.findAll(pageRequest);
+
+                    //Essa busca é apenas para forçar o carregamento de categoria e depois fica em memória! Não retorno nada.
+			  //Com essa linha a classe ProductDTO ao fazer conversao de Category pra CategoryDTO não vai chamar o banco, pois ja tem em memoria.
+			  repository.findProductsCategories(page.stream().collect(Collectors.toList()));
+
+                    return page.map(x -> new ProductDTO(x));
+                }
+            }
+
+	Tenha em mente que o método findAll() do repository em questão vai sar paginado, ou seja, vai utilizar um LIMIT.
+
+	16) Leia novamente o passo 7. Lembrou que na classe DTO quando chamavamos a conversão de Category para CategoryDTO era o ponto que obrigava o banco a
+	fazer outras consultas? Pois bem, agora não vai precisar, pois na classe ProductService já fizemos esse carregamento ao chamar nosso método 
+	personalizado repository.findProductsCategories(page.stream().collect(Collectors.toList())). O legal que o resultado desse carregamento fica em 
+	memória e por isso não precisamos bater no banco e outro ponto é que em apenas 1 consulta conseguimos carregar as categorias, ou seja, no total
+	teremos só duas consultas, uma para Products e outra para carregar as Catorgies.
+
+	Esse conceito de ficar em memória é a aplicação de um Padrão de Projeto chamado: Mapa de Identidade
+
+
+- Para lhe ajudar a escolher as soluções existente:
+
+	- Busca por todos elementos (que possuem um relacionamento N:N) sem paginação = Deve-se utilizar um método personalizado no Repository com Join Fetch (passo 8);
+
+	- Busca por todos elementos (que possuem um relacionamento N:N) com paginação = Deve-se utilizar um método personalizado no Repository para carregar o lado do relacionameto juntamente com o Query Method findAll(Pageable) 
+	(Começa no passo 13);
+
+	
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

@@ -1,0 +1,6 @@
+Neste capítulo o professor apresentou o desafio do capítulo (no material de apoio do Capitulo 5 há detalhes):
+
+
+- O desafio deve ser feito em cima do projeto MovieFlix. Esse projeto pode ser baixado em: https://github.com/devsuperior/bds06
+
+- Mais dúvidas foram tiradas em: https://www.youtube.com/watch?v=mulD7EShAGg&feature=youtu.be

@@ -1,0 +1,6 @@
+Neste capítulo resolvemos o desafio (estudo de caso) URI 2621. A resolução é somente via site (https://www.beecrowd.com.br/judge/pt/problems/view/2621)
+
+
+- Resolução:
+
+	SELECT prod.name FROM products prod INNER JOIN providers p ON p.id = prod.id_providers WHERE p.name LIKE 'P%' AND prod.amount BETWEEN 10 AND 20

@@ -1,0 +1,2 @@
+Neste capítulo o professor mostrou novamente que para cada desafio do URI que vamos fazer tem um projeto, pois vamos resolve-los também no projeto, ou seja
+fazer uma consulta SQL com Java e Spring.

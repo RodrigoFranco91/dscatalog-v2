@@ -1,0 +1,105 @@
+Neste capítulo vamos continuar a fazer aquela consulta filtrada pelo nome do produto e/ou categoria.
+
+
+- A primeira parte (os dois capitulos anteriores) fizemos o filtro de Categoria. Agora vamos de fato criar o filtro do Nome do Product. Queremos fazer
+a seguinte request:
+
+	GET em {{host}}/products?category=1&name=Gamer
+
+
+- Vamos atualizar o método find() de ProductRepository. Veja como tá nesse momento:
+
+            @Query("SELECT DISTINCT obj FROM Product obj INNER JOIN obj.categories cats WHERE (:category IS NULL OR :category IN cats)")
+            Page<Product> find(Category category, Pageable pageable);
+
+	Deverá ficar assim:
+
+            @Query("SELECT DISTINCT obj FROM Product obj INNER JOIN obj.categories cats WHERE (:category IS NULL OR :category IN cats) AND obj.name LIKE '%:name%' ")
+            Page<Product> find(Category category, Pageable pageable);
+
+	Só que a parte que usamos %% não vai funcionar, vamos precisar concatenar essa parte, logo o método ficará assim para funcionar:
+
+		@Query("SELECT DISTINCT obj FROM Product obj INNER JOIN obj.categories cats WHERE (:category IS NULL OR :category IN cats) AND (obj.name LIKE CONCAT('%',:name,'%'))")
+		Page<Product> find(Category category, Pageable pageable);
+
+	Obs: Lembre-se de sempre seguir a Forma Normal Conjuntiva, que é: as condições devem ser unidas com AND, só que dentro de uma condição pode haver um
+	OR, ficando assim: (AQUI TEMOS A PRIMEIRA CONDIÇÃO QUE PODE TER OU) AND (ESSA É A SEGUNDA CONDIÇÃO, VEJA QUE PARA UNIR AS DUAS, USAMOS O AND). Isso
+	facilita, pois com AND uma condição sendo falsa o resto já pode ser desconsiderado.
+
+
+- O nosso controller tem que passar a receber o argumento Name. Então na classe ProductResource, no método findAll() deve ficar assim:
+
+                @GetMapping
+                public ResponseEntity<Page<ProductDTO>> findAll(
+                        @RequestParam(value = "categoryId", defaultValue = "0") Long categoryId,
+                        @RequestParam(value = "name", defaultValue = "") String name,
+                        Pageable pageable) {
+                    
+                    Page<ProductDTO> list = service.findAllPaged(categoryId, name, pageable);		
+                    return ResponseEntity.ok().body(list);
+                }   
+
+	Veja que estamos repassando o name para o service, logo temos que atualizar lá também.
+
+
+- O método findAllPaged na classe ProductService ficou assim:
+
+                @Transactional(readOnly = true)
+                public Page<ProductDTO> findAllPaged(Long categoryId, String name, Pageable pageable) {
+                    List<Category> categories = (categoryId == 0) ? null : Arrays.asList(categoryRepository.getOne(categoryId));
+                    Page<Product> page = repository.find(categories, name, pageable);
+                    return page.map(x -> new ProductDTO(x));
+                }
+
+	Veja que estamos repassando o name para o Repository, mas no primeiro passo já preparamos isso.
+
+
+- Agora podemos testar via Postman e veremos que vai funcionar, mas não perfeitamente. Pois tá fazendo diferença a letra maiuscula e minuscula. Pra resolver
+isso vamos transformar tudo pra maiusculo ou minusculo. O método find() de ProductRepository deverá ficar assim:
+
+		@Query("SELECT DISTINCT obj FROM Product obj INNER JOIN obj.categories cats WHERE (:category IS NULL OR :category IN cats) AND (LOWER(obj.name) LIKE LOWER(CONCAT('%',:name,'%')))")
+		Page<Product> find(Category category, Pageable pageable);
+
+
+- Podemos testar novamente, mas veremos que se a pessoa utilizar espaço no nome do produto, vai dar problema. Tenha em mente que o espaço é definido pelo
+%, por exemplo: PC Gamer é igual PC%Gamer. Passando o nome encodado (utilizando %, vai dar certo).
+
+
+- Podemos testar novamente, mas veremos que se a pessoa utilizar espaço antes ou no fim do nome do product vai dar problema. Vamos
+resolver isso com a função TRIM já na classe Controller/Resource. Veja como ficou a classe ProductResource:
+
+                @GetMapping
+                public ResponseEntity<Page<ProductDTO>> findAll(
+                        @RequestParam(value = "categoryId", defaultValue = "0") Long categoryId,
+                        @RequestParam(value = "name", defaultValue = "") String name,
+                        Pageable pageable) {
+                    
+                    Page<ProductDTO> list = service.findAllPaged(categoryId, name.trim(), pageable);		
+                    return ResponseEntity.ok().body(list);
+                }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

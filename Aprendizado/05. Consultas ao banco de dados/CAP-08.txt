@@ -1,0 +1,5 @@
+Neste capítulo continuamos a resolver um dos exercícios do URI, no caso o URI 2602 (agora dentro do Projeto Java com Spring);
+
+
+- Foi nesse capítulo que de fato foi implementado o método search2() da interface CustomerRepository. Eu por achar que fazia mais sentido comentei sobre
+esse no capítulo anterior, mas o professor de fato fez neste capítulo.

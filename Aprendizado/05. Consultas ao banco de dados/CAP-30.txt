@@ -1,0 +1,53 @@
+Neste capítulo vamos falar sobre o problema N+1 referente a consulta filtrada pelo nome do produto e/ou categoria que fizemos anteriormente.
+
+
+- O único motivo de não estarmos tendo esse problema até agora, é que na classe ProductService no método findAllPaged() estamos fazendo a conversão de
+Product para ProductDTO usando o construtor que não usa a lista de categorias de um Produto, ou seja, não estamos chamando o atributo lista e por padrão
+a lista é LAZY LOADING, lembra? Veja que mesmo a @Query usando a categoria não afeta em nada, até porque o SELECT é so em cima de Product, Categoria vem
+no WHERE:
+
+                @Query("SELECT DISTINCT obj FROM Product obj INNER JOIN obj.categories cats WHERE "
+                        + "(COALESCE(:categories) IS NULL OR cats IN :categories) AND "
+                        + "(LOWER(obj.name) LIKE LOWER(CONCAT('%',:name,'%'))) ")
+                Page<Product> find(List<Category> categories, String name, Pageable pageable);
+
+
+- Na conversao de Product para ProductDTO vamos passar a usar o atributo da lista de categorias, ou seja, vamos usar o construtor de ProductDTO que recebe 
+Product e a lista de categorias como argumentos:
+
+                @Transactional(readOnly = true)
+                public Page<ProductDTO> findAllPaged(Long categoryId, String name, Pageable pageable) {
+                    List<Category> categories = (categoryId == 0) ? null : Arrays.asList(categoryRepository.getOne(categoryId));
+                    Page<Product> page = repository.find(categories, name, pageable);
+                    return page.map(x -> new ProductDTO(x, x.getCategories()));
+                }
+
+	Nesse trecho estamos usando o construtor mencionado: x -> new ProductDTO(x, x.getCategories()
+
+	E agora passamos a ter o problema do N+1.
+
+
+- Resolvendo o problema N+1:
+
+	1) O primeiro passo é criar em ProductRepository um método que vai carregar todos os Produtos juntamente com suas Categorias e esse método tem que 
+	receber uma lista de produtos, pois é desses produtos da lista que vamos carregar as categorias! Veja como ficou:
+
+                @Query("SELECT obj FROM Product obj JOIN FETCH obj.categories WHERE obj IN :products")
+                List<Product> findProductsWithCategories(List<Product> products);
+
+	Obs: Temos que usar o JOIN FECTH e esse comando não funciona com PAGE, por isso seu retorno é uma lista e por isso precisamos de 2 métodos!
+
+	A ideia aqui é primeiro usar o método find() de ProductRepository para montar um Page dos Produtos (listagem com paginação, com ou sem filtro) e depois
+	eu chamo o método findProductsWithCategories() passando como parametro a lista de produtos que obtivemos através do método find() anterior, dessa
+	forma vamos carregar a Categoria de todos os Produtos presenta na lista que foi conseguida através do find()
+
+	2) Agora devemos chamar o método findProductsWithCategories() criado em ProductRepository lá na classe ProductService, essa chamada de método é apenas
+	para carregar em memória a categoria dos produtos! Veja como ficou:
+
+                @Transactional(readOnly = true)
+                public Page<ProductDTO> findAllPaged(Long categoryId, String name, Pageable pageable) {
+                    List<Category> categories = (categoryId == 0) ? null : Arrays.asList(categoryRepository.getOne(categoryId));
+                    Page<Product> page = repository.find(categories, name, pageable);
+                    repository.findProductsWithCategories(page.getContent());
+                    return page.map(x -> new ProductDTO(x, x.getCategories()));
+                }

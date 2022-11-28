@@ -1,0 +1,85 @@
+Neste capítulo resolvemos um dos exercícios do URI.
+
+
+- Resolvendo o exercicio UTI 2602 (https://www.beecrowd.com.br/judge/pt/problems/view/2602), mas agora dentro do Projeto Java com Spring;
+
+
+- Abrimos o projeto Uri2602Application, e veja que com profile dev vamos usar nossa base de dados do Postgres. Lembre-se de configurar o acesso ao banco
+no arquivo application-dev.properties;
+
+
+- Para rodar a nossa resposta do desafio (SQL) no projeto, tivemos que fazer:
+
+	1) Criar a interface CustomerRepository que herda JPARepository;
+
+	2) Criamos a interface CustomerMinProjection, com essa podemos fazer uma projeção, ou seja, será uma consulta que não vai exibir o objeto/tabela
+	inteira, no nosso caso vamos mostrar apenas o nome de Customer. Veja como ficará:
+
+            public interface CustomerMinProjection {
+                String getName();
+            }
+
+	Sabemos que o objeto Customer tem o atributo Name e é somente ele que queremos exibir na consulta, logo só fazemos o método getName() na interface.
+	
+	3) Agora na interface CustomerRepository vamos criar um método que retorna uma lista da nossa projeção, ou seja, uma lista de CustomerMinProjection.
+	Existem duas maneiras de se fazer a consulta (escrever o SQL) dentro de um Repository, cada maneira será um método. Veja como podemos fazer:
+
+            public interface CustomerRepository extends JpaRepository<Customer, Long> {
+
+                @Query(nativeQuery = true, value = "SELECT name FROM customers WHERE UPPER(state) = UPPER(:state)")
+                List<CustomerMinProjection> search1(String state);
+
+                @Query("SELECT new com.devsuperior.uri2602.dto.CustomerMinDTO(obj.name) FROM Customer obj WHERE UPPER(obj.state) = UPPER(:state)")
+                List<CustomerMinDTO> search2(String state);
+            }
+
+	A primeira é uma consulta "raiz", ou seja, escrevemos um SQL muito parecido com que fazemos diretamente no banco. O nosso argumento será atribuido ao
+	:state. Essa maneira é conhecido como Native Query;
+
+	A segunda maneira já é utilizando o "SQL" da JPA, ou seja, não é puro. Essa maneira é usando JPQL. Nesse caso o retorno já pode ser a classe DTO,
+	não precisa ser a projeção e para isso devemos usar no SQL o new com o caminho completo da classe. Após o WHERE temos que usar o nome da classe de entidade e dar um apelido
+
+	Em ambos usamos a função UPPER, para sempre o argumento ser maiusculo!
+
+
+- Para testarmos esse projeto sem criar a camada web, fizemos o seguinte:
+
+	1) Na classe principal, no nosso caso Uri2602Application passou a implementar CommandLineRunner;
+
+	2) Injetamos nessa classe um CustomerRepository;
+
+	3) Chamamos os métodos de CustomerRepository. Veja como ficou a classe:
+
+            @SpringBootApplication
+            public class Uri2602Application implements CommandLineRunner {
+
+                @Autowired
+                private CustomerRepository repository;
+                
+                public static void main(String[] args) {
+                    SpringApplication.run(Uri2602Application.class, args);
+                }
+
+                @Override
+                public void run(String... args) throws Exception {
+
+                    List<CustomerMinProjection> list = repository.search1("RS");
+                    List<CustomerMinDTO> result1 = list.stream().map(x -> new CustomerMinDTO(x)).collect(Collectors.toList());
+                    
+                    System.out.println("\n*** RESULTADO SQL RAIZ:");
+                    for (CustomerMinDTO obj : result1) {
+                        System.out.println(obj);
+                    }
+                    System.out.println("\n\n");
+                    
+                    List<CustomerMinDTO> result2 = repository.search2("RS");
+                    
+                    System.out.println("\n*** RESULTADO JPQL:");
+                    for (CustomerMinDTO obj : result2) {
+                        System.out.println(obj);
+                    }
+                }
+            }
+
+	Veja que criamos um DTO para ser a casca da resposta do banco de dados (CustomerMinDTO). É essa casca que deve ser retornada ao Cliente.
+	Devemos ainda criar um cosntrutor para esse DTO que receba a String de nome (assim ja podemos retornar direto no repositry) e um construtor que receba a projeção.

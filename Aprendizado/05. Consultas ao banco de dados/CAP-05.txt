@@ -1,0 +1,8 @@
+Neste capítulo resolvemos um dos exercícios do URI (resolvemos apenas no site).
+
+
+- Resolvendo o exercicio UTI 2602 (https://www.beecrowd.com.br/judge/pt/problems/view/2602).
+
+	Solucação: 
+
+		select name from customers where state LIKE 'RS';

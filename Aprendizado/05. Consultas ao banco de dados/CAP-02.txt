@@ -1,0 +1,11 @@
+Neste capítulo foi apresentado os links para fazer download dos projetos prontos.
+Lembre-se que foram dois projetos, um chamado estudo de caso (dentro dele haverá diversos projetos) e o outro será o dscatalog que já conhecemos.
+
+
+- Ainda nesse capitulo tivemos que criar o banco de dados no postgres, o banco se chamou dscatalog. Nesse banco de dados rodamos o SCRIPT que o professor
+disponibilizou para criar as tabelas. Para povoamento desse banco de dados rodamos o SCRIPT data.sql que está no projeto dscatalog (dentro da pasta resource).
+
+
+- Atente-se que o projeto dscatalog tem dois profiles, um de dev e outro de test (cada profile é um arquivo .properties). Somente o profile de dev que utiliza
+o Postgres, logo temos que usá-lo. Para subir o projeto no profile desejado podemos alterar o valor de spring.profiles.active que fica no arquivo
+applicaton.properties

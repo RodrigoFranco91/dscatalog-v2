@@ -1,0 +1,96 @@
+Neste capítulo continuamos a resolução do desafio (estudo de caso) URI 2609 (https://www.beecrowd.com.br/judge/pt/problems/view/2609). Agora a solução será
+via projeto Java com Spring.
+
+
+- Resolução:
+
+	1) Lembre-se que vamos utilizar o Profile dev, logo temos que ir no arquivo application-dev.properties e configurar o acesso ao banco de dados;
+
+	2) O resultado esperado da busca é de duas colunas, Name da Categoria e o Somatório do produto no estoque (SUM). Sabendo disso vamos criar nossa
+	interface de Projeção com dois métodos (um para cada coluna do resultado da busca). A interface ficará assim:
+
+            public interface CategorySumProjection {
+
+                String getName();
+                Long getSum();
+            }
+
+	3) Agora criamos a interface CategoryRepository e nela dois métodos de consulta, um usando Native Query e outro JPQL:
+
+            public interface CategoryRepository extends JpaRepository<Category, Long> {
+
+                @Query(nativeQuery = true, value = "SELECT categories.name, SUM(products.amount) "
+                        + "FROM categories "
+                        + "INNER JOIN products ON products.id_categories = categories.id "
+                        + "GROUP BY categories.name")
+                List<CategorySumProjection> search1();
+                
+                @Query("SELECT new com.devsuperior.uri2609.dto.CategorySumDTO(obj.category.name, SUM(obj.amount)) "
+                        + "FROM Product obj "
+                        + "GROUP BY obj.category.name")
+                List<CategorySumDTO> search2();
+            }
+
+
+	Veja que na primeira o retorno do método é do tipo da Projeção;
+
+	No segundo método, usando JPQL, sabemos que podemos navegar nos relacionamentos do Objeto, por isso usamos um FROM Product no lugar de FROM Categories
+	(igual fizemos no primeiro método), pois só podemos entrar/navegar no objeto ManyToOne. Nesse segundo método o retorno foi uma classe DTO, por esse
+	motivo usamos o new + nome completo da classe. A classe DTO ficou assim:
+
+            public class CategorySumDTO {
+
+                private String name;
+                private Long sum;
+                
+                public CategorySumDTO() {
+                }
+
+                public CategorySumDTO(String name, Long sum) {
+                    this.name = name;
+                    this.sum = sum;
+                }
+
+                public CategorySumDTO(CategorySumProjection projection) {
+                    name = projection.getName();
+                    sum = projection.getSum();
+                }
+		
+			//GET E SET
+
+	4) Para executar esse programa sem criar a parte Web, fizemos a classe principal implementar CommandLineRunner. Ficando assim:
+
+            @SpringBootApplication
+            public class Uri2609Application implements CommandLineRunner {
+
+                @Autowired
+                private CategoryRepository repository;
+                
+                public static void main(String[] args) {
+                    SpringApplication.run(Uri2609Application.class, args);
+                }
+
+                @Override
+                public void run(String... args) throws Exception {
+
+                    List<CategorySumProjection> list = repository.search1();
+                    List<CategorySumDTO> result1 = list.stream().map(x -> new CategorySumDTO(x)).collect(Collectors.toList());
+                    
+                    System.out.println("\n*** RESULTADO SQL RAIZ:");
+                    for (CategorySumDTO obj : result1) {
+                        System.out.println(obj);
+                    }
+                    System.out.println("\n\n");
+                    
+                    List<CategorySumDTO> result2 = repository.search2();
+                    
+                    System.out.println("\n*** RESULTADO JPQL:");
+                    for (CategorySumDTO obj : result2) {
+                        System.out.println(obj);
+                    }
+                }
+            }
+
+		Veja que injetamos um CategoryRepository;
+
+		Usando a primeira busca do Repository tivemos que converter a Projeção para DTO.

@@ -1,0 +1,60 @@
+Neste capítulo começamos a usar o Projeto DSCatalog, ou seja, fazer consulta nesse projeto/banco.
+
+
+- Agora vamos fazer aquela consulta filtrada pelo nome do produto e/ou categoria. Os filtros são opcionais, ou seja, quando não preenchidos todos os 
+produtos devem ser exibidos/listados. Essa consulta fica no Catálogo (página web).
+
+
+- Vamos começar a implementar o filtro de categoria. Tenha em mente que para listar todos os produtos podemos bater no PATH: {{host}}/products
+e queremos que o seguinte PATH seja o com filtro: {{host}}/products?categoryId=1. Aqui vamos usar no projeto o Profile test e no application.test vamos 
+usar o banco de dados H2;
+
+
+- Implementando de fato o filtro de categoria (ESPERAMOS UM ERRO):
+
+	1) Ir na classe ProductService e devemos alterar o método findAll(). Repare que ele recebe apenas o parâmetro de paginação que é o Pageable, devemos
+	adicionar o parâmetro chamado categoryId, ficando assim:
+
+                @GetMapping
+                public ResponseEntity<Page<ProductDTO>> findAll(
+                        @RequestParam(value = "categoryId", defaultValue = "0") Long categoryId,
+                        Pageable pageable) {
+                    
+                    Page<ProductDTO> list = service.findAllPaged(categoryId, pageable);		
+                    return ResponseEntity.ok().body(list);
+                }
+
+	Devemos alterar o método findAll() na classe ProductService para que ele receba agora o parâmetro categoryId, 	
+	Devemos também alterar o ProductRepository, mas quando fazemos consulta através do JPA é boa prática fazer consulta com Objetos e não somente valor (
+	nesse caso apenas o ID da categoria) e por isso no método findAll() de ProductService vamos instanciar em memória (sem bater no banco) categoria com o
+	ID informado (isso foi feito através do getOne().
+
+                @Transactional(readOnly = true)
+                public Page<ProductDTO> findAllPaged(Long categoryId, Pageable pageable) {
+                    Category category = (categoryId == 0) ? null : categoryRepository.getOne(categoryId);
+                    Page<Product> page = repository.findAll(category, pageable);
+                    return page.map(x -> new ProductDTO(x));
+                }
+
+	Devemos alterar o método findAll() de ProductRepository, mas vamos optar por criar o método personalizado chamado de find(), e esse método deve
+	receber com argumento o categories que instanciamos com getOne() e o pageable. Veja como ficou:
+
+                @Query("SELECT obj FROM Product obj WHERE :category IN obj.categories")
+                Page<Product> find(Category category, Pageable pageable);
+
+	Lembre-se o Pageable deve ser o último argumento e na classe ProductService vamos passar a usar o método find() de ProductRepository.
+
+	2) Feito tudo isso, podemos ir no Postman e testar, ou seja, fazer a request: {{host}}/products?categoryId=1 e teremos um erro 500, pois o "SQL" desse
+	jeito não funciona, pois estamos fazendo o seguinte: Na JPQL estamos pegando o objeto Product e tentando acessar sua Lista de categorias, e isso NÃO
+	funciona. Se fosse acessar apenas uma categoria, ou seja, se Product tivesse o atributo category anotado com @ManyToOne, funcionaria numa boa!
+
+	3) Para funcionar a @Query deve ficar assim:
+
+                @Query("SELECT obj FROM Product obj INNER JOIN obj.categories cats WHERE :category IN cats")
+                Page<Product> find(Category category, Pageable pageable);
+
+	cats é apenas um apelido para a Categorias que acessamos através do obj.categories
+
+	4) Agora conseguimos testar a request para {{host}}/products?categoryId=1 
+	Mas a request {{host}}/products que seria para listar todos os produtos não funcionou. Teremos que corrigir a Query para isso, mas isso ficará para
+	o próximo capítulo.

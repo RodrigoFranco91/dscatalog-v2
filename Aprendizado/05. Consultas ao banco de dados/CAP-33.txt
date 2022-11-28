@@ -1,0 +1,42 @@
+Neste capítulo implementamos a consulta de notificações do DSLearn (nesse capitulo mexemos no projeto DSCatalog, apenas aqui será outro) de forma completa:
+
+
+- Até agora tinhamos feito de forma provisória uma busca de notificação por usuário, no caso usamos usando QueryMethod e por consequencia estamos mostrando
+todas as notificações, mas lembre-se no front-end vai ter um botão que vai permitir exibir TODAS notificações OU apenas as não lidas.
+
+
+- Até agora o path que respondia essa operação era: /notifications mas agora deve ficar mais ou menos assim: /notifications?unreadOnly=true  (poderá ser
+false ou sem essa argumento).
+
+
+- Até o momento o método que fazia essa operação era o findByUser() da classe NotificationRepository:
+
+	Page<Notification> findByUser(User user, Pageable pageable)
+
+
+- Agora vamos refazer o método findByUser() da classe NotificationRepository para:
+
+	@Query("SELECT obj FROM Notification obj WHERE (obj.user = :user) AND (:unreadOnly = false OR obj.read = false) ORDER BY obj.moment DESC")
+	Page<Notification> find(User user, boolean unreadOnly, Pageable pageable);
+
+	Atente-se que usamos aquele macete do OR nesse trecho (:unreadOnly = false OR obj.read = false). Esse trecho indica que a request quando feita via
+	/notifications?unreadOnly=false ou então sem a variável ficando assim /notifications e que queremos buscar todas as notifications e a primeira
+	condição já dando verdadeiro a segunda condição já nem faz diferença, agora se a primeira condição do OR der False a segunda condição será analisada
+	e esse será o cenário que vamos exibir apenas notificações não lidas.
+
+
+- Lembre-se que devemos alterar a classe NotificationService, o método a ser chamado do repository será:
+
+	repository.find(user, unreadOnly, pageable)
+
+	O argumento unreadOnly vai chegar como parametro no método: notificationsForCurrentUser()
+
+
+- Lembre-se de atualizar o controller, no caso a classe NotificationResource:
+
+	@GetMapping
+	public ResponseEntity<Page<NotificationDTO>> notificationsForCurrentUser(@RequestParam(defaultValue = "false") Boolean unreadOnly, Pageable pageable) {
+		
+		Page<NotificationDTO> page = service.notificationsForCurrentUser(unreadOnly, pageable);		
+		return ResponseEntity.ok().body(page);
+	}

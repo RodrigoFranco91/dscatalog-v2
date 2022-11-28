@@ -1,0 +1,40 @@
+Neste capítulo vamos continuar a fazer aquela consulta filtrada pelo nome do produto e/ou categoria.
+
+
+- Sabemos que esses filtros estão funcionando corretamente ao utilizar o profile de Test, este profile faz uso do banco de dados H2. Vamos passar a usar o 
+profile Dev, que faz uso do banco de dados Postgres e vamos tenstar novamente a busca com o filtro e novamente veremos que o filtro funciona.
+
+
+- Devemos continuar a usar o profile Dev e fazer uma listagem sem aplicar o filtro, pois o filtro é opcional, quando não passamos o filtro a busca deve
+listar todos produtos, mas sem usar o filtro vamos ter como resposta o ERRO 500! O postgres não aceita o trecho: (:category IS NULL OR :category IN cats)
+que está presente na Query do método find() da classe ProductRepository.
+
+
+- Para corrigir isso não vamos mais filtrar por apenas uma categoria e sim uma lista de categorias! Teremos que mexer em diversos trechos de codigo.
+E terá uma mudança de pensamento, antes na query que deu errado estavamos lendo da seguinte forma: a categoria passada como argumento, no caso category
+está presente em cats que são as categorias do produtor obj. Agora a leitura será: as categorias (cats) do produto (obj) está dentro da lista de categoria
+chamada de categories passada como argumento?
+
+Mas atente-se, temos que verificar se a lista de argumentos não é nula e existe uma função do postgres que faz isso que é a função COALESCE. O método
+find() de ProductRepository vai ficar assim:
+
+                @Query("SELECT DISTINCT obj FROM Product obj INNER JOIN obj.categories cats WHERE "
+                        + "(COALESCE(:categories) IS NULL OR cats IN :categories) AND "
+                        + "(LOWER(obj.name) LIKE LOWER(CONCAT('%',:name,'%'))) ")
+                Page<Product> find(List<Category> categories, String name, Pageable pageable);
+
+
+- Vamos alterar a classe ProductService, pois lá também vamos passar a receber uma lista de categoria como argumento. O método findAllPaged() vai ficar 
+assim:
+
+                @Transactional(readOnly = true)
+                public Page<ProductDTO> findAllPaged(Long categoryId, String name, Pageable pageable) {
+                    List<Category> categories = (categoryId == 0) ? null : Arrays.asList(categoryRepository.getOne(categoryId));
+                    Page<Product> page = repository.find(categories, name, pageable);
+                    repository.findProductsWithCategories(page.getContent());
+                    return page.map(x -> new ProductDTO(x, x.getCategories()));
+                }
+
+	Aqui a gente compara com zero, pois é o valor padrão que usamos lá na classe Controller, lá se o cliente não passar o argumento para usar no filtro
+	o valor padrão será zero.
+

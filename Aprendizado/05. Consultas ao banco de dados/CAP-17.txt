@@ -1,0 +1,28 @@
+Neste capítulo resolvemos novamente o desafio (estudo de caso) URI 2737. 
+A resolução é somente via site (https://www.beecrowd.com.br/judge/pt/problems/view/2737)
+
+
+- Resolução 2, usando Sub-consultas. Ou seja, SEM USAR ORDER BY QUE É PESADO. Usaremos as funções MIN E MAX (a outra foi apresentada no capítulo anterior):
+
+            (SELECT l.NAME, l.customers_number FROM lawyers l 
+            WHERE l.customers_number = 
+            (SELECT MAX(l.customers_number)FROM lawyers l))
+
+            UNION ALL
+
+            (SELECT l.NAME, l.customers_number FROM lawyers l 
+            WHERE l.customers_number = 
+            (SELECT MIN(l.customers_number)FROM lawyers l))
+            
+            UNION ALL
+
+            (SELECT 'Avrage', ROUND(AVG(l.customers_number),0) FROM lawyers l)
+
+Obs:
+
+Veja que aqui fizemos 3 consultas, mas na consulta que define o máximo e o mínimo usamos o recurso de Sub-consultas. Repare que l.customers_number é uma 
+coluna da projeção que queremos, ou seja, do resultado da consulta. Em seguida usamos um WHERE com o nome da coluna, no caso l.customers_number com valor = 
+SELECT MAX, ou seja, a coluna l.customers_number vai ter o resultado gerado em outra consulta que define o max e min. Fizemos o mesmo para a consulta que 
+define o mínimo.
+
+Sobre a média a resolução ficou igual a resolução de número 1, que foi apresentada no capítulo anterior.

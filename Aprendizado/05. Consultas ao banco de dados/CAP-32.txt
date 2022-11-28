@@ -1,0 +1,82 @@
+Neste capítulo fizemos a configuração de CORS do projeto DSCatalog
+
+
+- O que é CORS? É um recurso dos Navegadores Web de proteção, que no caso não permite uma aplicação A no HOST X acesse a Aplicação B no HOST Y. Dessa forma
+eu posso liberar minha aplicação Backend especificamente para uma aplicação Frontend.
+
+
+- Por padrão o CORS é bloqueado. Devemos ir na classe ResourcServerConfig e adicionar:
+
+                @Bean
+                public CorsConfigurationSource corsConfigurationSource() {
+                    CorsConfiguration corsConfig = new CorsConfiguration();
+                    corsConfig.setAllowedOriginPatterns(Arrays.asList("*"));
+                    corsConfig.setAllowedMethods(Arrays.asList("POST", "GET", "PUT", "DELETE", "PATCH"));
+                    corsConfig.setAllowCredentials(true);
+                    corsConfig.setAllowedHeaders(Arrays.asList("Authorization", "Content-Type"));
+                
+                    UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
+                    source.registerCorsConfiguration("/**", corsConfig);
+                    return source;
+                }
+                
+                @Bean
+                public FilterRegistrationBean<CorsFilter> corsFilter() {
+                    FilterRegistrationBean<CorsFilter> bean
+                            = new FilterRegistrationBean<>(new CorsFilter(corsConfigurationSource()));
+                    bean.setOrder(Ordered.HIGHEST_PRECEDENCE);
+                    return bean;
+                }
+
+	Obs sobre os importes:
+
+
+            import org.springframework.web.cors.CorsConfiguration;
+            import org.springframework.web.cors.CorsConfigurationSource;
+            import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
+            import org.springframework.web.filter.CorsFilter;
+
+
+	Entenda essa configuração:
+
+      	corsConfig.setAllowedOriginPatterns(Arrays.asList("*")); -> Aqui estou liberando todo mundo para acessar esse projeto, no futuro poderia
+		definir o dominio do meu frontendt;
+
+            corsConfig.setAllowedMethods(Arrays.asList("POST", "GET", "PUT", "DELETE", "PATCH")); -> Aqui estou definindo quais métodos vou liberar
+
+            corsConfig.setAllowCredentials(true); -> Aqui estou permitindo crendeciais
+
+            corsConfig.setAllowedHeaders(Arrays.asList("Authorization", "Content-Type")); -> Aqui estou definindo quais cabeçalhos serão aceitos
+
+
+	Depois de criar a configuração do CORS fazemos o segundo @Bean para de fato passar a usar (registrar) a configuração feita. Esse registro é um filtro
+	com a maior precedencia possivel.
+
+
+- Ainda o CORS não ta sendo usado. Precisamos ir no método configure(HttpSecurity http) e adicionar no fim o trecho:
+
+		http.cors().configurationSource(corsConfigurationSource());
+
+	
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

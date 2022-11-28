@@ -1,0 +1,5 @@
+Neste capítulo o professor criou devido as dúvidas dos alunos sobre como fazer dos DTOs do desafio que foi propostao no capitulo anterior.
+
+
+- No material de apoio há o Postman Collection feito para fazer as requests necessárias neste desafio e o próprio Collection já auxilia como deve ser as 
+classes DTOs.

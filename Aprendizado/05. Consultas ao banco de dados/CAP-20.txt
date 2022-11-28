@@ -1,0 +1,14 @@
+Neste capítulo resolvemos o desafio (estudo de caso) URI 2990. A resolução é somente via site (https://www.beecrowd.com.br/judge/pt/problems/view/2990)
+
+
+- Resolução2, usando LEFT JOIN:
+
+	
+	      SELECT e.cpf, e.enome, d.dnome  FROM empregados e JOIN departamentos d ON d.dnumero = e.dnumero 
+            LEFT JOIN trabalha t ON t.cpf_emp = e.cpf 
+            LEFT JOIN projetos p ON p.pnumero = t.pnumero
+            WHERE t.pnumero IS null ORDER BY e.cpf 
+
+	Obs: Aqui usamos o LEFT, pois a primeira tabela escrita no SCRIPT é de empregados (veja que por ela ser primeira ela está a esquerda da segunda tabela em
+	questão, que no caso é a trabalha) e no nosso caso queremos dados que possam estar na tabela empregados e que não estão nas tabelas que vem a direita, por isso
+	do uso do LEFT!

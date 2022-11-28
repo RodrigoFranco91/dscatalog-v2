@@ -1,0 +1,94 @@
+Neste capítulo continuamos a resolução do desafio (estudo de caso) URI 2621 (https://www.beecrowd.com.br/judge/pt/problems/view/2621). A resolução agora é
+via projeto Java e Spring.
+
+
+- Resolução:
+
+	1) Lembre-se que vamos utilizar o Profile dev, logo no arquivo application-dev.properties devemos configurar o nosso banco de dados;
+
+	2) Nossa consulta só visa mostrar o Name do product, logo criamos uma projeção que terá apenas o método getName (lembre-se, o nome aqui tem que bater
+	com atributo da classe de Entidade que por vez bate com a da tabela do banco de dados). A interface de projeção ficou assim:
+
+            public interface ProductMinProjection {
+
+                String getName();
+            }
+
+	3) Agora criamos a interface ProductRepository que extends JpaRepository. Nela terá dois métodos de busca, um usando Native Query e outro usando
+	JPQL. A interface ficou assim: 
+
+            public interface ProductRepository extends JpaRepository<Product, Long> {
+
+                @Query(nativeQuery = true, value = "SELECT products.name "
+                        + "FROM products "
+                        + "INNER JOIN providers ON providers.id = products.id_providers "
+                        + "WHERE products.amount BETWEEN :min AND :max "
+                        + "AND providers.name LIKE CONCAT(:beginName, '%')")
+                List<ProductMinProjection> search1(Integer min, Integer max, String beginName);
+
+                @Query("SELECT new com.devsuperior.uri2621.dto.ProductMinDTO(obj.name) "
+                        + "FROM Product obj "
+                        + "WHERE obj.amount BETWEEN :min AND :max "
+                        + "AND obj.provider.name LIKE CONCAT(:beginName, '%')")
+                List<ProductMinDTO> search2(Integer min, Integer max, String beginName);
+            }
+
+	Veja que a primeira busca retorna a Projeção que criamos no passo 2, já a segunda busca retorna a classe DTO que também foi criada para retornar ao
+	cliente. A classe ProductMinDTO ficou assim:
+
+            public class ProductMinDTO {
+
+                private String name;
+                
+                public ProductMinDTO() {
+                }
+
+                public ProductMinDTO(String name) {
+                    this.name = name;
+                }
+
+                public ProductMinDTO(ProductMinProjection projection) {
+                    name = projection.getName();
+                }
+
+			//GET E SET
+
+	Lembre-se que para retornar a classe DTO (segunda busca), devemos usar o new e todo o caminho da classe.
+
+	4) Para executar esse programa sem criar a parte Web, fizemos a classe principal implementar CommandLineRunner. Ficando assim:
+
+
+            @SpringBootApplication
+            public class Uri2621Application implements CommandLineRunner {
+
+                @Autowired
+                private ProductRepository repository;
+                
+                public static void main(String[] args) {
+                    SpringApplication.run(Uri2621Application.class, args);
+                }
+
+                @Override
+                public void run(String... args) throws Exception {
+                    
+                    List<ProductMinProjection> list = repository.search1(10, 20, "P");
+                    List<ProductMinDTO> result1 = list.stream().map(x -> new ProductMinDTO(x)).collect(Collectors.toList());
+                    
+                    System.out.println("\n*** RESULTADO SQL RAIZ:");
+                    for (ProductMinDTO obj : result1) {
+                        System.out.println(obj);
+                    }
+                    System.out.println("\n\n");
+                    
+                    List<ProductMinDTO> result2 = repository.search2(10, 20, "P");
+                    
+                    System.out.println("\n*** RESULTADO JPQL:");
+                    for (ProductMinDTO obj : result2) {
+                        System.out.println(obj);
+                    }
+                }
+            }
+
+		Veja que injetamos um ProductRepository;
+
+		Usando a primeira busca do Repository tivemos que converter a Projeção para DTO.

@@ -1,0 +1,97 @@
+Neste capítulo resolvemos o desafio (estudo de caso) URI 2737 (https://www.beecrowd.com.br/judge/pt/problems/view/2737), mas agora no projeto Java com
+Spring.
+
+
+- Resolução:
+
+	1) Vamos usar o Profile dev, logo temos que configurar no arquivo application-dev.properties o acesso ao banco de dados;
+
+	2) O resultado esperado de nossa consulta, ou seja, da nossa Projeção vem em duas colunas, name de lawyers e customers_number também de lawyers.
+	Portanto vamos criar uma interface que será nossa Projeção e a mesma terá dois métodos get (um para cada coluna da resposta da consulta que queremos).
+	Lembre-se que o nome do método tem que ser get + nome do atributo da classe/tabela. A interface ficará assim:
+
+            public interface LawyerMinProjection {
+
+                String getName();
+                Integer getCustomersNumber();
+            }
+
+	3) Criamos a interface LawyersRepository que extends JpaRepository. Aqui teremos APENAS UM método de busca, que será usando Native Query, pois
+	no JPQL ainda não temos o comando de UNIÃO (UNION), embora que tem como resolver sem UNION, mas é mais complicado. A interface deve ficar assim:
+
+            public interface LawyerRepository extends JpaRepository<Lawyer, Long> {
+
+                @Query(nativeQuery = true, value = "SELECT name, customers_number AS customersNumber "
+                        + "FROM lawyers "
+                        + "WHERE customers_number = ( "
+                        + "    SELECT MAX(customers_number) "
+                        + "    FROM lawyers "
+                        + ") "
+                        + "UNION ALL "
+                        + "SELECT name, customers_number "
+                        + "FROM lawyers "
+                        + "WHERE customers_number = ( "
+                        + "    SELECT MIN(customers_number) "
+                        + "    FROM lawyers "
+                        + ") "
+                        + "UNION ALL "
+                        + "SELECT 'Average', ROUND(AVG(customers_number), 0) "
+                        + "FROM lawyers")
+                List<LawyerMinProjection> search1();
+            }
+
+	Atente-se que na coluna customers_number tivemos que dar um apelido de customersNumber, pois sabemos que a JPQL pega nomes juntos e separa pelo
+	simbolo "_" e vice-versa. O valor dado para o apelido foi de customersNumber, pois o método da nossa projeção (interface LawyerMinProjection) se chama
+	getCustomersNumber();
+	
+	4) Criamos uma classe DTO (casca) para retornar a consulta para o cliente. A classe ficou assim:
+
+            public class LawyerMinDTO {
+
+                private String name;
+                private Integer customersNumber;
+                
+                public LawyerMinDTO() {
+                }
+
+                public LawyerMinDTO(String name, Integer customersNumber) {
+                    this.name = name;
+                    this.customersNumber = customersNumber;
+                }
+
+                public LawyerMinDTO(LawyerMinProjection projection) {
+                    name = projection.getName();
+                    customersNumber = projection.getCustomersNumber();
+                }
+			//GET E SET
+            }
+
+	5) Para executar esse programa sem criar a parte Web, fizemos a classe principal implementar CommandLineRunner. Ficando assim:
+
+            @SpringBootApplication
+            public class Uri2737Application implements CommandLineRunner {
+
+                @Autowired
+                private LawyerRepository repository;
+                
+                public static void main(String[] args) {
+                    SpringApplication.run(Uri2737Application.class, args);
+                }
+
+                @Override
+                public void run(String... args) throws Exception {
+                    
+                    List<LawyerMinProjection> list = repository.search1();
+                    List<LawyerMinDTO> result1 = list.stream().map(x -> new LawyerMinDTO(x)).collect(Collectors.toList());
+                    
+                    System.out.println("\n*** RESULTADO SQL RAIZ:");
+                    for (LawyerMinDTO obj : result1) {
+                        System.out.println(obj);
+                    }
+                }
+            }
+
+		Veja que injetamos um CategoryRepository;
+
+		Tivemos que converter a Projeção para DTO.
+	

@@ -1,0 +1,3 @@
+Neste capitulo foi apresentado o conteudo que vamos aprender sobre Consultas ao banco de dados. Usaremos ainda o projeto Dscatalog.
+Usaremos o SQL ("Linguagem do Banco de Dados")  e usaremos a JPQL ("Linguagem que a JPA usa para o banco de dados")
+Usaremos também o Spring Data JPA e resolveremos o problema do N+1

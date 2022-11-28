@@ -1,0 +1,35 @@
+Neste capítulo o professor mostrou novamente o arquivo de apoio do capítlo, pois a partir de agora vamos voltar a usar o projeto DSCatalog e através desse
+arquivo você pode encontrar o download do projet. Outro ponto importante é criar o banco de dados com nome dscatalog e usar o Script que o professor 
+disponibilizou (O de criação de tabelas e o de povoamento)!
+
+Aqui ainda criamos o perfil de dev do projeto, ou seja, duplicamos o arquivo application-test.properties, mas colocamos o nome de application-dev.properties
+e o conteúdo adicionado neste arquivo foi:
+
+            #spring.jpa.properties.javax.persistence.schema-generation.create-source=metadata
+            #spring.jpa.properties.javax.persistence.schema-generation.scripts.action=create
+            #spring.jpa.properties.javax.persistence.schema-generation.scripts.create-target=create.sql
+            #spring.jpa.properties.hibernate.hbm2ddl.delimiter=;
+
+            spring.datasource.url=jdbc:postgresql://localhost:5432/dscatalog
+            spring.datasource.username=postgres
+            spring.datasource.password=postgre
+
+            spring.jpa.database-platform=org.hibernate.dialect.PostgreSQLDialect
+            spring.jpa.properties.hibernate.jdbc.lob.non_contextual_creation=true
+            spring.jpa.hibernate.ddl-auto=none
+
+	Lembre-se que para definir o profile, tivemos que ir no arquivo application.properties e colocar:
+
+		spring.profiles.active=${APP_PROFILE:test}
+
+
+
+
+
+
+
+
+
+
+
+

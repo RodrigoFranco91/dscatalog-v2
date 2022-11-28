@@ -1,0 +1,6 @@
+Neste capítulo foi dado alguns avisos sobre o projeto DSCatalog, por exemplo:
+
+	Haverá código do Amazon S3, pode desconsiderar nesse momento.
+
+	No capítulo 2 passamos a usar o Pageable no lugar do PageRequest, mas nesse capítulo vai aparecer novamente o PageRequest. Lembre-se que o
+	Pageable substitui aquele PageRequest com diversos parametros.
